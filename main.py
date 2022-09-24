@@ -61,10 +61,3 @@ async def create_item(age: str = Form(), is_return_user: bool = Form(), cough: o
         raise HTTPException(status_code=500, detail=str(e))
 
 
-## sleep api function
-@app.post("/sleep")
-async def sleep(age: str = Form(), is_return_user: bool = Form(), cough: object = File()):
-    print("start")
-    time.sleep(10)
-    print("end")
-    return {"message": "sleeping"}
