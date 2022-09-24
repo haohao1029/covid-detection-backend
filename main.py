@@ -33,16 +33,16 @@ model = keras.models.load_model('./models/cough_model.h5')
 s3 = boto3.resource('s3')
 bucket = s3.Bucket('cough-audio')
 @app.post("/covid_detection")
-async def create_item(age: str = Form(), is_return_user: bool = Form(), cough: object = File()):
+async def create_item(age: str = Form(), is_return_user: bool = Form(), coughBlob: object = File()):
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("INSERT INTO covid_detection (age, is_return_user, result, cough_heavy_file_location) VALUES (%s, %s, %s, %s) RETURNING id;", (age, is_return_user, "pending", "cough-heavy/"+cough.filename))
+        cur.execute("INSERT INTO covid_detection (age, is_return_user, result, cough_heavy_file_location) VALUES (%s, %s, %s, %s) RETURNING id;", (age, is_return_user, "pending", "cough-heavy/"+coughBlob.filename))
         id_of_new_row = cur.fetchone()[0]
         print(id_of_new_row)
         with open("./cough.wav", "wb+") as file_object:
-            file_object.write(cough.file.read())
+            file_object.write(coughBlob.file.read())
 
-        s3.Bucket('cough-audio').upload_file('./cough.wav', 'data/' + str(id_of_new_row) + "/" + cough.filename)
+        s3.Bucket('cough-audio').upload_file('./cough.wav', 'data/' + str(id_of_new_row) + "/" + coughBlob.filename)
 
         covid_status_name = ['healthy', 'no respillness exposed', 'resp illness not identified', 'positive moderate', 'recovered full', 'positive mild', 'positive asymp', 'under validation']
         y,sr = librosa.load("./cough.wav")
@@ -56,7 +56,7 @@ async def create_item(age: str = Form(), is_return_user: bool = Form(), cough: o
         p = np.argmax(p, axis=1)
         print(p)
 
-        return {"age": age, "is_return_user": is_return_user, "cough": cough.filename, "covid_status": covid_status_name[p.tolist()[0]]}
+        return {"age": age, "is_return_user": is_return_user, "cough": coughBlob.filename, "covid_status": covid_status_name[p.tolist()[0]]}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
