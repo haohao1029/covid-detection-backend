@@ -61,3 +61,12 @@ async def create_item(age: str = Form(), is_return_user: bool = Form(), coughBlo
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/covid_detection")
+async def get_all_items():
+    try:
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM covid_detection")
+        rows = cur.fetchall()
+        return rows
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
