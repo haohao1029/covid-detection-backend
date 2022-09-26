@@ -1,0 +1,7 @@
+gunicorn
+postgresql
+postgresql-contrib
+tensorflow
+librosa
+numpy
+fastapipsycopg2
