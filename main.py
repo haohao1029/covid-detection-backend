@@ -30,8 +30,6 @@ conn = psycopg2.connect(
 )
 
 model = keras.models.load_model('./models/cough_model.h5')
-s3 = boto3.resource('s3')
-bucket = s3.Bucket('cough-audio')
 @app.post("/covid_detection")
 async def create_item(age: str = Form(), is_return_user: bool = Form(), coughBlob: object = File()):
     try:
@@ -41,8 +39,8 @@ async def create_item(age: str = Form(), is_return_user: bool = Form(), coughBlo
         print(id_of_new_row)
         with open("./cough.wav", "wb+") as file_object:
             file_object.write(coughBlob.file.read())
-
-        s3.Bucket('cough-audio').upload_file('./cough.wav', 'data/' + str(id_of_new_row) + "/" + coughBlob.filename)
+        with open("./data/"+ str(id_of_new_row) + "/" + coughBlob.filename, "wb+") as file_object:
+            file_object.write(coughBlob.file.read())
 
         covid_status_name = ['healthy', 'no respillness exposed', 'resp illness not identified', 'positive moderate', 'recovered full', 'positive mild', 'positive asymp', 'under validation']
         y,sr = librosa.load("./cough.wav")
