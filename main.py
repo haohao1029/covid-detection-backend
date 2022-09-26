@@ -3,11 +3,11 @@ import tensorflow.keras as keras
 import librosa
 import numpy as np
 from fastapi import FastAPI, Form, File, UploadFile, HTTPException
-import boto3
 from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 import psycopg2.extras
-import time
+import os
+
 app = FastAPI()
 
 app.add_middleware(
@@ -31,14 +31,16 @@ conn = psycopg2.connect(
 
 model = keras.models.load_model('./models/cough_model.h5')
 @app.post("/covid_detection")
-async def create_item(age: str = Form(), is_return_user: bool = Form(), coughBlob: object = File()):
+async def create_item(age: str = Form(), is_return_user: bool = Form(), coughBlob: object = Form()):
     try:
         cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
-        cur.execute("INSERT INTO covid_detection (age, is_return_user, result, cough_heavy_file_location) VALUES (%s, %s, %s, %s) RETURNING id;", (age, is_return_user, "pending", "cough-heavy/"+coughBlob.filename))
+        cur.execute("INSERT INTO covid_detection (age, is_return_user, result, cough_heavy_file_location) VALUES (%s, %s, %s, %s) RETURNING id;", (age, is_return_user, "pending", "/cough/"+coughBlob.filename))
         id_of_new_row = cur.fetchone()[0]
-        print(id_of_new_row)
         with open("./cough.wav", "wb+") as file_object:
             file_object.write(coughBlob.file.read())
+        
+        os.mkdir("./data/"+str(id_of_new_row))
+
         with open("./data/"+ str(id_of_new_row) + "/" + coughBlob.filename, "wb+") as file_object:
             file_object.write(coughBlob.file.read())
 
@@ -49,6 +51,7 @@ async def create_item(age: str = Form(), is_return_user: bool = Form(), coughBlo
         S_dB_mel = S_dB_mel[:128, :225]
         S_dB_mel_np_arr = np.array([S_dB_mel])
         p = model.predict(S_dB_mel_np_arr)
+        cur.execute("UPDATE covid_detection SET result = %s WHERE id = %s", (covid_status_name[np.argmax(p)], id_of_new_row))
         print(p)
         print(p[0][np.argmax(p)])
         p = np.argmax(p, axis=1)
@@ -56,6 +59,7 @@ async def create_item(age: str = Form(), is_return_user: bool = Form(), coughBlo
 
         return {"age": age, "is_return_user": is_return_user, "cough": coughBlob.filename, "covid_status": covid_status_name[p.tolist()[0]]}
     except Exception as e:
+        print(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
